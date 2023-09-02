@@ -47,6 +47,7 @@ __author__ = 'robinson@google.com (Will Robinson)'
 
 import ctypes
 import numbers
+import memoryview
 
 from google.protobuf.internal import decoder
 from google.protobuf.internal import encoder
@@ -307,7 +308,7 @@ _VALUE_CHECKERS = {
     _FieldDescriptor.CPPTYPE_DOUBLE: DoubleValueChecker(),
     _FieldDescriptor.CPPTYPE_FLOAT: FloatValueChecker(),
     _FieldDescriptor.CPPTYPE_BOOL: BoolValueChecker(),
-    _FieldDescriptor.CPPTYPE_STRING: TypeCheckerWithDefault(b'', bytes),
+    _FieldDescriptor.CPPTYPE_STRING: TypeCheckerWithDefault(b'', bytes, memoryview),
 }
 
 

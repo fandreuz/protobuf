@@ -225,6 +225,31 @@ bool PyUpb_IsNumpyNdarray(PyObject* obj, const upb_FieldDef* f) {
   return is_ndarray;
 }
 
+bool PyUpb_IsMemoryView(PyObject* obj, const upb_FieldDef* f) {
+  PyObject* type_name_obj =
+      PyObject_GetAttrString((PyObject*)Py_TYPE(obj), "__name__");
+  bool is_memoryview = false;
+  if (!strcmp(PyUpb_GetStrData(type_name_obj), "memoryview")) {
+    is_memoryview = true;
+  }
+  Py_DECREF(type_name_obj);
+  return is_memoryview;
+}
+
+bool PyUpb_GetBytesBuffer(PyObject* memoryview, char** ptr, Py_ssize_t* size) {
+  Py_buffer* buffer = PyMemoryView_GET_BUFFER(obj);
+  if (buffer->itemsize != 1) {
+    PyErr_Format(PyExc_TypeError,
+                 "%S buffer does not contain bytes: itemsize=%s", obj,
+                 buffer->itemsize);
+    return false;
+  }
+
+  // TODO Handle the non-contiguous and non-positive stride cases
+  *ptr = (char*)buffer->buf;
+  *size = buffer->len;
+}
+
 bool PyUpb_PyToUpb(PyObject* obj, const upb_FieldDef* f, upb_MessageValue* val,
                    upb_Arena* arena) {
   switch (upb_FieldDef_CType(f)) {
@@ -253,7 +278,11 @@ bool PyUpb_PyToUpb(PyObject* obj, const upb_FieldDef* f, upb_MessageValue* val,
     case kUpb_CType_Bytes: {
       char* ptr;
       Py_ssize_t size;
-      if (PyBytes_AsStringAndSize(obj, &ptr, &size) < 0) return false;
+      if (PyUpb_IsMemoryView(obj, f)) {
+        if (!PyUpb_GetBytesBuffer(obj, &ptr, &size)) return false;
+      } else if (PyBytes_AsStringAndSize(obj, &ptr, &size) < 0)
+        return false;
+
       *val = PyUpb_MaybeCopyString(ptr, size, arena);
       return true;
     }
